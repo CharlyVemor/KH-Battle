@@ -388,6 +388,10 @@ void MarluxiaAI(bool EnemShield, int health);
 void DisplayNumber(int Number);
 void SetDamage(bool ToPlayer);
 void SetHealing(bool IsPlayer);
+void HealSoraMASM(int Heal);
+void HealRikuMASM(int Heal);
+void HealAxelMASM(int Heal);
+void HealMarluxiaMASM(int Heal);
 
 int WINAPI wWinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,PWSTR pCmdLine,int nCmdShow)
 {
@@ -5737,6 +5741,7 @@ void ActualizaAnimacion(HWND hWnd){
 	InvalidateRect(hWnd, NULL, FALSE);
 	UpdateWindow(hWnd);
 }
+
 void MainRender(HWND hWnd) 
 {
 	LimpiarFondo(ptrBufferPixelsWindow, 0xFF000000, (ANCHO_VENTANA * ALTO_VENTANA));
@@ -6032,6 +6037,7 @@ void mirrorxblt(int* punteroDestino,//Buffer donde comenzara a pasar los datos
 
 }
 
+
 //Funciones completamente al azar
 
 //Atacara o defendera y muy raramente se curara
@@ -6149,6 +6155,7 @@ void AxelAI() {
 }
 
 //Función parcialmente al azar
+
 //Si tiene poca vida, se enfocara en curar o defender
 //Si ya tiene escudo, no se lo volvera a poner
 //Se enfocara primeramente en atacar
@@ -6251,6 +6258,289 @@ void MarluxiaAI(bool EnemShield, int health) {
 		break;
 	}
 	EnemyTurn = false;
+}
+
+void HealSoraMASM(int Heal) {
+	int* HealthSpritePointer = &VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho;
+	__asm {
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+
+		mov ecx, Heal //Puntos a curar a ecx
+		cmp ecx, 0	//Si el numero random es cero, se cambia a uno
+		jne HealCalculations1
+
+		mov ecx, 1
+
+		HealCalculations1:
+		//Multiplicación: eax guarda el primer valor de una multiplicación y es remplazado por su resultado al final
+		//El registro o variable multiplicado no es afectado, en este caso ebx
+		mov eax, ecx
+			mov ebx, 100
+			mul ebx
+
+			//División: eax guarda el numero a dividir y es remplazado por su resultado al final, edx guarda el residuo
+			//El registro o variable dividido no es afectado, en este caso ebx
+			mov ebx, SoraHealth
+			div ebx
+
+			//eax tiene el resultado del porcentaje de cuanta vida se le esta curando al personaje [(PuntosDeCura * 100)/Salud]
+			//edx tiene el residuo restante
+
+			cmp edx, 5 // Si el residuo es 5 o más, se redondeara el porcentaje, para obtener resultados más aproximados
+			jb NoExtraPercent1
+
+			inc eax // Agrega un 1% al porcentaje
+
+			NoExtraPercent1 :
+
+		mov ebx, WidthHealthbar
+			mul ebx //Porcentaje de vida aumentada * Pixeles totales del Sprite de vida
+
+			mov ebx, 100
+			div ebx // (Porcentaje * Pixeles) / 100
+
+			//eax tiene el resultado del numero de pixeles al que se le aumentara al ancho del sprite
+
+			mov edi, HealthSpritePointer
+			add[edi], eax // Ahora obtenido el porcentaje de los puntos de vida adquiridos, es el mismo porcentaje que se sumara al sprite de vida (Representado en pixeles)
+
+			cmp[edi], 180 // Si el sprite sobrepasa el maximo de pixeles del sprite (180), se baja a 180
+			ja HealthOverflow1
+			jmp AssignValues1
+
+			HealthOverflow1 :
+		mov[edi], 180
+
+			AssignValues1 :
+
+			mov edx, PlayerHealth
+			add edx, ecx //Agrega vida a la vida actual del jugador
+			mov ebx, SoraHealth
+
+			cmp edx, ebx //Si la vida es mayor a la maxima posible, se regresa al maximo posible
+			jbe SetHealthPlayer
+
+			mov edx, ebx
+
+			SetHealthPlayer :
+		mov PlayerHealth, edx
+	}
+}
+
+void HealRikuMASM(int Heal) {
+	int* HealthSpritePointer = &VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho;
+
+	__asm {
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+
+		mov ecx, Heal //Puntos a curar a ecx
+		cmp ecx, 0	//Si el numero random es cero, se cambia a uno
+		jne HealCalculations2
+
+		mov ecx, 1
+
+		HealCalculations2:
+		//Multiplicación: eax guarda el primer valor de una multiplicación y es remplazado por su resultado al final
+		//El registro o variable multiplicado no es afectado, en este caso ebx
+		mov eax, ecx
+			mov ebx, 100
+			mul ebx
+
+			//División: eax guarda el numero a dividir y es remplazado por su resultado al final, edx guarda el residuo
+			//El registro o variable dividido no es afectado, en este caso ebx
+			mov ebx, RikuHealth
+			div ebx
+
+			//eax tiene el resultado del porcentaje de cuanta vida se le esta curando al personaje [(PuntosDeCura * 100)/Salud]
+			//edx tiene el residuo restante
+
+			cmp edx, 5 // Si el residuo es 5 o más, se redondeara el porcentaje, para obtener resultados más aproximados
+			jb NoExtraPercent2
+
+			inc eax // Agrega un 1% al porcentaje
+
+			NoExtraPercent2 :
+
+		mov ebx, WidthHealthbar
+			mul ebx //Porcentaje de vida aumentada * Pixeles totales del Sprite de vida
+
+			mov ebx, 100
+			div ebx // (Porcentaje * Pixeles) / 100
+
+			//eax tiene el resultado del numero de pixeles al que se le aumentara al ancho del sprite
+
+			mov edi, HealthSpritePointer
+			add[edi], eax // Ahora obtenido el porcentaje de los puntos de vida adquiridos, es el mismo porcentaje que se sumara al sprite de vida (Representado en pixeles)
+
+			cmp[edi], 180 // Si el sprite sobrepasa el maximo de pixeles del sprite (180), se baja a 180
+			ja HealthOverflow2
+			jmp AssignValues2
+
+			HealthOverflow2 :
+		mov[edi], 180
+
+			AssignValues2 :
+
+			mov edx, EnemyHealth
+			add edx, ecx //Agrega vida a la vida actual de Riku
+			mov ebx, RikuHealth
+
+			cmp edx, ebx //Si la vida es mayor a la maxima posible, se regresa al maximo posible
+			jbe SetHealthRiku
+
+			mov edx, ebx
+
+			SetHealthRiku :
+		mov EnemyHealth, edx
+	}
+}
+
+void HealAxelMASM(int Heal) {
+	int* HealthSpritePointer = &VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho;
+
+	__asm {
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+
+		mov ecx, Heal //Puntos a curar a ecx
+		cmp ecx, 0	//Si el numero random es cero, se cambia a uno
+		jne HealCalculations3
+
+		mov ecx, 1
+
+		HealCalculations3:
+		//Multiplicación: eax guarda el primer valor de una multiplicación y es remplazado por su resultado al final
+		//El registro o variable multiplicado no es afectado, en este caso ebx
+		mov eax, ecx
+			mov ebx, 100
+			mul ebx
+
+			//División: eax guarda el numero a dividir y es remplazado por su resultado al final, edx guarda el residuo
+			//El registro o variable dividido no es afectado, en este caso ebx
+			mov ebx, AxelHealth
+			div ebx
+
+			//eax tiene el resultado del porcentaje de cuanta vida se le esta curando al personaje [(PuntosDeCura * 100)/Salud]
+			//edx tiene el residuo restante
+
+			cmp edx, 5 // Si el residuo es 5 o más, se redondeara el porcentaje, para obtener resultados más aproximados
+			jb NoExtraPercent3
+
+			inc eax // Agrega un 1% al porcentaje
+
+			NoExtraPercent3 :
+
+		mov ebx, WidthHealthbar
+			mul ebx //Porcentaje de vida aumentada * Pixeles totales del Sprite de vida
+
+			mov ebx, 100
+			div ebx // (Porcentaje * Pixeles) / 100
+
+			//eax tiene el resultado del numero de pixeles al que se le aumentara al ancho del sprite
+
+			mov edi, HealthSpritePointer
+			add[edi], eax // Ahora obtenido el porcentaje de los puntos de vida adquiridos, es el mismo porcentaje que se sumara al sprite de vida (Representado en pixeles)
+
+			cmp[edi], 180 // Si el sprite sobrepasa el maximo de pixeles del sprite (180), se baja a 180
+			ja HealthOverflow3
+			jmp AssignValues3
+
+			HealthOverflow3 :
+		mov[edi], 180
+
+			AssignValues3 :
+
+			mov edx, EnemyHealth
+			add edx, ecx //Agrega vida a la vida actual de Axel
+			mov ebx, AxelHealth
+
+			cmp edx, ebx //Si la vida es mayor a la maxima posible, se regresa al maximo posible
+			jbe SetHealthAxel
+
+			mov edx, ebx
+
+			SetHealthAxel :
+		mov EnemyHealth, edx
+	}
+}
+
+void HealMarluxiaMASM(int Heal) {
+	int* HealthSpritePointer = &VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho;
+
+	__asm {
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+
+		mov ecx, Heal //Puntos a curar a ecx
+		cmp ecx, 0	//Si el numero random es cero, se cambia a uno
+		jne HealCalculations4
+
+		mov ecx, 1
+
+		HealCalculations4:
+		//Multiplicación: eax guarda el primer valor de una multiplicación y es remplazado por su resultado al final
+		//El registro o variable multiplicado no es afectado, en este caso ebx
+		mov eax, ecx
+			mov ebx, 100
+			mul ebx
+
+			//División: eax guarda el numero a dividir y es remplazado por su resultado al final, edx guarda el residuo
+			//El registro o variable dividido no es afectado, en este caso ebx
+			mov ebx, MarluxiaHealth
+			div ebx
+
+			//eax tiene el resultado del porcentaje de cuanta vida se le esta curando al personaje [(PuntosDeCura * 100)/Salud]
+			//edx tiene el residuo restante
+
+			cmp edx, 5 // Si el residuo es 5 o más, se redondeara el porcentaje, para obtener resultados más aproximados
+			jb NoExtraPercent4
+
+			inc eax // Agrega un 1% al porcentaje
+
+			NoExtraPercent4 :
+
+		mov ebx, WidthHealthbar
+			mul ebx //Porcentaje de vida aumentada * Pixeles totales del Sprite de vida
+
+			mov ebx, 100
+			div ebx // (Porcentaje * Pixeles) / 100
+
+			//eax tiene el resultado del numero de pixeles al que se le aumentara al ancho del sprite
+
+			mov edi, HealthSpritePointer
+			add[edi], eax // Ahora obtenido el porcentaje de los puntos de vida adquiridos, es el mismo porcentaje que se sumara al sprite de vida (Representado en pixeles)
+
+			cmp[edi], 180 // Si el sprite sobrepasa el maximo de pixeles del sprite (180), se baja a 180
+			ja HealthOverflow4
+			jmp AssignValues4
+
+			HealthOverflow4 :
+		mov[edi], 180
+
+			AssignValues4 :
+
+			mov edx, EnemyHealth
+			add edx, ecx //Agrega vida a la vida actual de Marluxia
+			mov ebx, MarluxiaHealth
+
+			cmp edx, ebx //Si la vida es mayor a la maxima posible, se regresa al maximo posible
+			jbe SetHealthMarluxia
+
+			mov edx, ebx
+
+			SetHealthMarluxia :
+		mov EnemyHealth, edx
+	}
 }
 #pragma endregion
 
@@ -6531,126 +6821,208 @@ void SetDamage(bool ToPlayer) {
 	DisplayNumber(Damage);
 }
 
+//SetHealing() versión c++
+
+//void SetHealing(bool IsPlayer) {
+//
+//	int Heal = 0;
+//	//Variable usada para la version en c++
+//	int HealPercent = 0;
+//	srand((unsigned)time(NULL));
+//
+//	switch (CurrentStage) {
+//	case Stage1:
+//		if (IsPlayer) {
+//			Heal = rand() % 20;
+//
+//			//HealSoraMASM(Heal);
+//
+//			//Version de c++
+//
+//			if (Heal == 0) {
+//				Heal = 1;
+//			}
+//			//Calcula que porcentaje de curación se le hara al personaje
+//			//Para poder modificar el largo de la barra de vida
+//			//correspondiente
+//			HealPercent = (Heal * 100) / SoraHealth;
+//			if ((Heal * 100) % SoraHealth >= 5) {
+//				HealPercent++;
+//			}
+//			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
+//			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho > 180) {
+//				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 180;
+//			}
+//		}
+//		else {
+//			Heal = rand() % 15;
+//
+//			//HealRikuMASM(Heal);
+//
+//			//Version en c++
+//
+//			if (Heal == 0) {
+//				Heal = 1;
+//			}
+//			HealPercent = (Heal * 100) / RikuHealth;
+//			if ((Heal * 100) % RikuHealth >= 5) {
+//				HealPercent++;
+//			}
+//			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
+//			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho > 180) {
+//				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 180;
+//			}
+//		}
+//		break;
+//
+//	case Stage2:
+//		if (IsPlayer) {
+//			Heal = rand() % 35;
+//
+//			//HealSoraMASM(Heal);
+//
+//			//Version en c++
+//
+//			if (Heal == 0) {
+//				Heal = 1;
+//			}
+//			HealPercent = ((Heal * 100) / SoraHealth);
+//			if ((Heal * 100) % SoraHealth >= 5) {
+//				HealPercent++;
+//			}
+//			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100) + 1;
+//			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho > 180) {
+//				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 180;
+//			}
+//		}
+//		else {
+//			Heal = rand() % 20;
+//
+//			//HealAxelMASM(Heal);
+//
+//			//Version en c++
+//
+//			if (Heal == 0) {
+//				Heal = 1;
+//			}
+//			HealPercent = (Heal * 100) / AxelHealth;
+//			if ((Heal * 100) % AxelHealth >= 5) {
+//				HealPercent++;
+//			}
+//			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
+//			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho > 180) {
+//				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 180;
+//			}
+//		}
+//		break;
+//
+//	case Stage3:
+//		if (IsPlayer) {
+//			Heal = rand() % 50;
+//
+//			//HealSoraMASM(Heal);
+//
+//			//Version en c++
+//
+//			if (Heal == 0) {
+//				Heal = 1;
+//			}
+//			HealPercent = (Heal * 100) / SoraHealth;
+//			if ((Heal * 100) % SoraHealth >= 5) {
+//				HealPercent++;
+//			}
+//			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
+//			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho > 180) {
+//				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 180;
+//			}
+//		}
+//		else {
+//			Heal = rand() % 55;
+//
+//			//HealMarluxiaMASM(Heal);
+//
+//			//Version en c++
+//
+//			if (Heal == 0) {
+//				Heal = 1;
+//			}
+//			HealPercent = (Heal * 100) / MarluxiaHealth;
+//			if ((Heal * 100) % MarluxiaHealth >= 5) {
+//				HealPercent++;
+//			}
+//			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
+//			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho > 180) {
+//				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 180;
+//			}
+//		}
+//		break;
+//	}
+//	if (IsPlayer) {
+//		PlayerHealth += Heal;
+//		if (PlayerHealth > SoraHealth) PlayerHealth = SoraHealth;
+//	}
+//	else {
+//		EnemyHealth += Heal;
+//		switch (CurrentStage) {
+//			case Stage1:
+//				if (EnemyHealth > RikuHealth) EnemyHealth = RikuHealth;
+//				break;
+//			case Stage2:
+//				if (EnemyHealth > AxelHealth) EnemyHealth = AxelHealth;
+//				break;
+//			case Stage3:
+//				if (EnemyHealth > MarluxiaHealth) EnemyHealth = MarluxiaHealth;
+//				break;
+//		}
+//	}
+//	DisplayNumber(Heal);
+//}
+
 void SetHealing(bool IsPlayer) {
 	int Heal = 0;
-	int HealPercent = 0;
-	srand((unsigned)time(NULL));
 
 	switch (CurrentStage) {
 	case Stage1:
 		if (IsPlayer) {
 			Heal = rand() % 20;
-			if (Heal == 0) {
-				Heal = 1;
-			}
 
-			//Calcula que porcentaje de curación se le hara al personaje
-			//Para poder modificar el largo de la barra de vida
-			//correspondiente
-			HealPercent = (Heal * 100) / SoraHealth;
-			if ((Heal * 100) % SoraHealth >= 5) {
-				HealPercent++;
-			}
-			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
-			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho > 180) {
-				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 180;
-			}
+			HealSoraMASM(Heal);
 		}
 		else {
 			Heal = rand() % 15;
-			if (Heal == 0) {
-				Heal = 1;
-			}
-			HealPercent = (Heal * 100) / RikuHealth;
-			if ((Heal * 100) % RikuHealth >= 5) {
-				HealPercent++;
-			}
-			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
-			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho > 180) {
-				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 180;
-			}
+
+			HealRikuMASM(Heal);
 		}
 		break;
 
 	case Stage2:
 		if (IsPlayer) {
 			Heal = rand() % 35;
-			if (Heal == 0) {
-				Heal = 1;
-			}
-			HealPercent = ((Heal * 100) / SoraHealth);
-			if ((Heal * 100) % SoraHealth >= 5) {
-				HealPercent++;
-			}
-			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100) + 1;
-			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho > 180) {
-				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 180;
-			}
+			
+			HealSoraMASM(Heal);
 		}
 		else {
 			Heal = rand() % 20;
-			if (Heal == 0) {
-				Heal = 1;
-			}
-			HealPercent = (Heal * 100) / AxelHealth;
-			if ((Heal * 100) % AxelHealth >= 5) {
-				HealPercent++;
-			}
-			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
-			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho > 180) {
-				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 180;
-			}
+			
+			HealAxelMASM(Heal);
 		}
 		break;
 
 	case Stage3:
 		if (IsPlayer) {
 			Heal = rand() % 50;
-			if (Heal == 0) {
-				Heal = 1;
-			}
-			HealPercent = (Heal * 100) / SoraHealth;
-			if ((Heal * 100) % SoraHealth >= 5) {
-				HealPercent++;
-			}
-			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
-			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho > 180) {
-				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 180;
-			}
+
+			HealSoraMASM(Heal);
 		}
 		else {
 			Heal = rand() % 55;
-			if (Heal == 0) {
-				Heal = 1;
-			}
-			HealPercent = (Heal * 100) / MarluxiaHealth;
-			if ((Heal * 100) % MarluxiaHealth >= 5) {
-				HealPercent++;
-			}
-			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho += ((WidthHealthbar * HealPercent) / 100);
-			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho > 180) {
-				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 180;
-			}
+			
+			HealMarluxiaMASM(Heal);
 		}
 		break;
 	}
-	if (IsPlayer) {
-		PlayerHealth += Heal;
-		if (PlayerHealth > SoraHealth) PlayerHealth = SoraHealth;
-	}
-	else {
-		EnemyHealth += Heal;
-		switch (CurrentStage) {
-			case Stage1:
-				if (EnemyHealth > RikuHealth) EnemyHealth = RikuHealth;
-				break;
-			case Stage2:
-				if (EnemyHealth > AxelHealth) EnemyHealth = AxelHealth;
-				break;
-			case Stage3:
-				if (EnemyHealth > MarluxiaHealth) EnemyHealth = MarluxiaHealth;
-				break;
-		}
+	if (Heal == 0) {
+		Heal = 1;
 	}
 	DisplayNumber(Heal);
 }
