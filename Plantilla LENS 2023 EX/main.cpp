@@ -342,7 +342,7 @@ int PlayerHealth = 0;
 int EnemyHealth = 0;
 unsigned int TotalDamage = 0;
 unsigned int TotalHealth = 0;
-long long unsigned int Score = 0;
+int Score = 0;
 
 bool PlayerShield = false;
 bool EnemyShield = false;
@@ -386,6 +386,7 @@ void RikuAI();
 void AxelAI();
 void MarluxiaAI(bool EnemShield, int health);
 void DisplayNumber(int Number);
+void WriteHighscores();
 void SetDamage(bool ToPlayer);
 void SetHealing(bool IsPlayer);
 void HealSoraMASM(int Heal);
@@ -450,6 +451,7 @@ int WINAPI wWinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,PWSTR pCmdLine,i
 	}
 
 	ControlXBOX = new GamepadXbox(1);
+	srand((unsigned)time(NULL));
 		
 	SetForegroundWindow(hWnd);						// Slightly Higher Priority
 	Init();
@@ -652,35 +654,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_CLOSE: 
 			{
 				if (CurrentStage == Winner) {
-					Score = TotalDamage * TotalHealth;
-					wfstream HighScores;
-					HighScores.open("HighScores.txt", ios::in | ios::out);
-					wstring Line;
-					wchar_t* endptr;
-					long long unsigned int FileScores[3] = { 0,0,0 };
-					getline(HighScores, Line);
-					for (int i = 0; i < 3; i++) {
-						getline(HighScores, Line);
-						FileScores[i] = wcstoull(Line.substr(Line.find_last_of(L"-") + 1).c_str(), &endptr, 10);
-					}
-					if (Score > FileScores[0]) {
-						FileScores[2] = FileScores[1];
-						FileScores[1] = FileScores[0];
-						FileScores[0] = Score;
-					}
-					else if (Score > FileScores[1]) {
-						FileScores[2] = FileScores[1];
-						FileScores[1] = Score;
-					}
-					else if (Score > FileScores[2]) {
-						FileScores[2] = Score;
-					}
-					HighScores.seekg(0);
-					HighScores << L"HIGHSCORES" << endl;
-					HighScores << L"1.-" << FileScores[0] << endl;
-					HighScores << L"2.-" << FileScores[1] << endl;
-					HighScores << L"3.-" << FileScores[2] << endl;
-					HighScores.close();
+					WriteHighscores();
 				}
 				DestroyWindow(hWnd);
 			}
@@ -6038,12 +6012,172 @@ void mirrorxblt(int* punteroDestino,//Buffer donde comenzara a pasar los datos
 }
 
 
-//Funciones completamente al azar
+//Funciones que utilizan ensamblador para calcular los puntajes
+
+void WriteHighscores() {
+	wfstream HighScores;
+	HighScores.open("HighScores.txt", ios::in | ios::out);
+	wstring Line;
+	int FileScores[3] = { 0,0,0 };
+	getline(HighScores, Line);
+	for (int i = 0; i < 3; i++) {
+		getline(HighScores, Line);
+		FileScores[i] = _wtoi(Line.substr(Line.find_last_of(L"-") + 1).c_str());
+	}
+
+	__asm {
+		lea edi, [FileScores] //Para modificar
+		lea esi, [FileScores] //Para usar como constante, No fue usado xd
+		mov eax, TotalDamage
+		mov ebx, TotalHealth
+
+		mul ebx
+
+		//eax tiene el puntaje total
+
+		mov ebx, edi //Para usar como auxiliar
+		cmp eax, [edi] //Puntaje == FileScores[0]
+		ja ReplaceFirstOne
+
+		add edi, 4
+		cmp eax, [edi] //Puntaje == FileScores[1]
+		ja ReplaceSecondOne
+
+		add edi, 4
+		cmp eax, [edi] //Puntaje == FileScores[2]
+		ja ReplaceThirdOne
+
+		ReplaceFirstOne : //edi empieza en [0]
+		add edi, 8 //edi, posición 3 [2]
+			mov ebx, edi //ebx = edi [2]
+			sub ebx, 4 //ebx, posición 2 [1]
+			mov ecx, [ebx]
+			mov[edi], ecx //Se mueve la posición 2 a la 3, [2] = [1]
+			sub edi, 4 //edi, posición 2 [1]
+			sub ebx, 4 //ebx, posición 1 [0]
+			mov ecx, [ebx]
+			mov[edi], ecx //Se mueve la posición 1 a la 2, [1] = [0]
+			sub edi, 4 //edi, posición 1 [0]
+			mov[edi], eax //Se sobreescribe la posición 1 original por la nueva, [0] = Puntaje
+			jmp FinishScores
+
+			ReplaceSecondOne : //edi empieza en [1]
+		add edi, 4 //edi, posición 3 [2]
+			mov ebx, edi//ebx = edi [2]
+			sub ebx, 4 //ebx, posición 2 [1]
+			mov ecx, [ebx]
+			mov[edi], ecx//Se mueve la posición 2 a la 3, [2] = [1]
+			sub edi, 4 //edi, posición 2 [1]
+			mov[edi], eax //Se sobreescribe la posición 2 original por la nueva, [1] = Puntaje
+			jmp FinishScores
+
+			ReplaceThirdOne : //edi empieza en [2]
+		mov[edi], eax //Se sobreescribe la posición 3 original por la nueva, [2] = Puntaje
+
+			FinishScores :
+	}
+
+	HighScores.seekg(0);
+	HighScores << L"HIGHSCORES" << endl;
+	HighScores << L"1.-" << FileScores[0] << endl;
+	HighScores << L"2.-" << FileScores[1] << endl;
+	HighScores << L"3.-" << FileScores[2] << endl;
+	HighScores.close();
+}
+
+void CambiarStage(int Stage) {
+	ReproductorCambiarCancionYReproduce(Stage);
+	SoraFrameActual = 0;
+	SoraAnimacionActual = Intro;
+	Sora.XCurrentCoordDraw = 600; //Posición default de Sora
+	PlayerShield = false;
+	EnemyShield = false;
+	ShowPlayerHealth = true;
+	ShowEnemyHealth = true;
+	PlayerTurn = false;
+	ShowUI = false;
+	ShowNums = false;
+	NumFrameActual = 0;
+
+	//Se suma la vida restante despues de cambiar de stage
+	//Por ejemplo, si sobreviviste con 50 puntos en Stage1, 80 puntos en Stage2, 20 puntos en Stage3
+	//Terminara siendo 150 el total, esto se calcula para calcular el puntaje final
+	__asm {
+		mov eax, Stage
+		cmp eax, 1
+		ja CheckGameOver
+		jmp SkipToEnd
+
+		CheckGameOver :
+		cmp eax, 5
+			je SkipToEnd
+
+			mov eax, TotalHealth
+			mov ebx, PlayerHealth
+			add eax, ebx
+			mov TotalHealth, eax
+
+			SkipToEnd :
+	}
+
+	//c++
+	//if (Stage == Stage2 || Stage == Stage3 || Stage == Winner) {
+	//	TotalHealth += PlayerHealth;
+	//}
+
+	PlayerHealth = SoraHealth;
+	VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = WidthHealthbar;
+	VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = WidthHealthbar;
+
+	switch (Stage) {
+	case Stage1:
+		RikuFrameActual = 0;
+		RikuAnimacionActual = Intro;
+		EnemyHealth = RikuHealth;
+		break;
+
+	case Stage2:
+		Sora.YCurrentCoordDraw = 390;
+		AxelFrameActual = 0;
+		AxelAnimacionActual = Intro;
+		EnemyHealth = AxelHealth;
+		break;
+
+	case Stage3:
+		Sora.YCurrentCoordDraw = 430;
+		MarluxiaFrameActual = 0;
+		MarluxiaAnimacionActual = Intro;
+		EnemyHealth = MarluxiaHealth;
+		ShowIntroMarluxia = true;
+		GuadañaFrameActual = 0;
+		break;
+
+	case Winner:
+		InGame = false;
+		WinScreen = true;
+		break;
+
+	case GameOver:
+		InGame = false;
+		InGameOver = true;
+		SoraFrameActual = 0;
+		Sora.XCurrentCoordDraw = 335;
+		Sora.YCurrentCoordDraw = 400;
+		SoraAnimacionActual = Die;
+		player->Pause();
+		pausa = true;
+		break;
+	}
+	CurrentStage = Stage;
+}
+
+
+//Funciones completamente al azar para controlar a los enemigos (1 y 2)
 
 //Atacara o defendera y muy raramente se curara
 void RikuAI() {
 	unsigned int RandomNumber;
-	srand((unsigned)time(NULL));
+	//srand((unsigned)time(NULL));
 	RandomNumber = rand() % 200;
 
 	unsigned short int Action = 0;
@@ -6100,7 +6234,7 @@ void RikuAI() {
 //60% Ataque 20% Defensa 20% Cura
 void AxelAI() {
 	unsigned int RandomNumber;
-	srand((unsigned)time(NULL));
+	//srand((unsigned)time(NULL));
 	RandomNumber = rand() % 300;
 
 	unsigned short int Action = 0;
@@ -6154,14 +6288,15 @@ void AxelAI() {
 	EnemyTurn = false;
 }
 
-//Función parcialmente al azar
+
+//Función parcialmente al azar para controlar al enemigo final
 
 //Si tiene poca vida, se enfocara en curar o defender
 //Si ya tiene escudo, no se lo volvera a poner
 //Se enfocara primeramente en atacar
 void MarluxiaAI(bool EnemShield, int health) {
 	unsigned int RandomNumber;
-	srand((unsigned)time(NULL));
+	//srand((unsigned)time(NULL));
 	RandomNumber = rand() % 100;
 
 	unsigned short int Action = 0;
@@ -6648,7 +6783,7 @@ void DisplayNumber(int Number) {
 void SetDamage(bool ToPlayer) {
 	int Damage = 0;
 	int DamagePercent = 0;
-	srand((unsigned)time(NULL));
+	//srand((unsigned)time(NULL));
 	switch (CurrentStage) {
 	case Stage1:
 		if (ToPlayer) {
@@ -6821,7 +6956,7 @@ void SetDamage(bool ToPlayer) {
 	DisplayNumber(Damage);
 }
 
-//SetHealing() versión c++
+//void SetHealing(bool ToPlayer) versión c++
 
 //void SetHealing(bool IsPlayer) {
 //
@@ -7046,14 +7181,10 @@ void ReproductorInicializaYReproduce() {
 		player->OpenFile(Cancion[0].Dir.c_str(), sfAutodetect);
 	player->Play();
 
-	//effects->OpenFile(Cancion[2].Dir.c_str(), sfMp3);
-	//effects->Play();
-
 	TStreamTime pTime;
 	pTime.sec = 1;
 	player->Seek(tfSecond, &pTime, smFromCurrentForward);
 	player->SetPlayerVolume(100, 100);
-	//effects->SetMasterVolume(50, 50);
 }
 
 void ReproductorCambiarCancionYReproduce(int NumeroCancionAeproducir) {
@@ -7064,6 +7195,8 @@ void ReproductorCambiarCancionYReproduce(int NumeroCancionAeproducir) {
 		printf("No file found");
 	else
 		player->OpenFile(Cancion[NumeroCancionAeproducir].Dir.c_str(), sfAutodetect);
+
+	//Se baja el volumen de la canción del 3er stage
 	if (NumeroCancionAeproducir == 3) {
 		player->SetPlayerVolume(80, 80);
 	}
@@ -7084,67 +7217,4 @@ void ReproductorReproduce() {
 	else 
 		player->Play();
 	pausa = false;
-}
-
-void CambiarStage(int Stage) {
-	ReproductorCambiarCancionYReproduce(Stage);
-	SoraFrameActual = 0;
-	SoraAnimacionActual = Intro;
-	Sora.XCurrentCoordDraw = 600;
-	PlayerShield = false;
-	EnemyShield = false;
-	ShowPlayerHealth = true;
-	ShowEnemyHealth = true;
-	PlayerTurn = false;
-	ShowUI = false;
-	ShowNums = false;
-	NumFrameActual = 0;
-
-	if (Stage == Stage2 || Stage == Stage3 || Stage == Winner) {
-		TotalHealth += PlayerHealth;
-	}
-	PlayerHealth = SoraHealth;
-	VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = WidthHealthbar;
-	VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = WidthHealthbar;
-
-	switch (Stage) {
-	case Stage1:
-		RikuFrameActual = 0;
-		RikuAnimacionActual = Intro;
-		EnemyHealth = RikuHealth;
-		break;
-
-	case Stage2:
-		Sora.YCurrentCoordDraw = 390;
-		AxelFrameActual = 0;
-		AxelAnimacionActual = Intro;
-		EnemyHealth = AxelHealth;
-		break;
-
-	case Stage3:
-		Sora.YCurrentCoordDraw = 430;
-		MarluxiaFrameActual = 0;
-		MarluxiaAnimacionActual = Intro;
-		EnemyHealth = MarluxiaHealth;
-		ShowIntroMarluxia = true;
-		GuadañaFrameActual = 0;
-		break;
-
-	case Winner:
-		InGame = false;
-		WinScreen = true;
-		break;
-
-	case GameOver:
-		InGame = false;
-		InGameOver = true;
-		SoraFrameActual = 0;
-		Sora.XCurrentCoordDraw = 335;
-		Sora.YCurrentCoordDraw = 400;
-		SoraAnimacionActual = Die;
-		player->Pause();
-		pausa = true;
-		break;
-	}
-	CurrentStage = Stage;
 }
