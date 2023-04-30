@@ -393,6 +393,10 @@ void HealSoraMASM(int Heal);
 void HealRikuMASM(int Heal);
 void HealAxelMASM(int Heal);
 void HealMarluxiaMASM(int Heal);
+void DamageSoraMASM(int Damage);
+void DamageRikuMASM(int Damage);
+void DamageAxelMASM(int Damage);
+void DamageMarluxiaMASM(int Damage);
 
 int WINAPI wWinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,PWSTR pCmdLine,int nCmdShow)
 {
@@ -6171,13 +6175,12 @@ void CambiarStage(int Stage) {
 	CurrentStage = Stage;
 }
 
-
 //Funciones completamente al azar para controlar a los enemigos (1 y 2)
 
 //Atacara o defendera y muy raramente se curara
 void RikuAI() {
 	unsigned int RandomNumber;
-	//srand((unsigned)time(NULL));
+	srand((unsigned)time(NULL));
 	RandomNumber = rand() % 200;
 
 	unsigned short int Action = 0;
@@ -6234,7 +6237,7 @@ void RikuAI() {
 //60% Ataque 20% Defensa 20% Cura
 void AxelAI() {
 	unsigned int RandomNumber;
-	//srand((unsigned)time(NULL));
+	srand((unsigned)time(NULL));
 	RandomNumber = rand() % 300;
 
 	unsigned short int Action = 0;
@@ -6288,7 +6291,6 @@ void AxelAI() {
 	EnemyTurn = false;
 }
 
-
 //Función parcialmente al azar para controlar al enemigo final
 
 //Si tiene poca vida, se enfocara en curar o defender
@@ -6296,7 +6298,7 @@ void AxelAI() {
 //Se enfocara primeramente en atacar
 void MarluxiaAI(bool EnemShield, int health) {
 	unsigned int RandomNumber;
-	//srand((unsigned)time(NULL));
+	srand((unsigned)time(NULL));
 	RandomNumber = rand() % 100;
 
 	unsigned short int Action = 0;
@@ -6677,6 +6679,290 @@ void HealMarluxiaMASM(int Heal) {
 		mov EnemyHealth, edx
 	}
 }
+
+void DamageSoraMASM(int Damage) {
+	int* HealthSpritePointer = &VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho;
+	__asm {
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+
+		mov ecx, Damage //Puntos a curar a ecx
+		cmp ecx, 0	//Si el numero random es cero, se cambia a uno
+		jne DamageCalculations5
+
+		mov ecx, 1
+
+		DamageCalculations5:
+		//Multiplicación: eax guarda el primer valor de una multiplicación y es remplazado por su resultado al final
+		//El registro o variable multiplicado no es afectado, en este caso ebx
+		mov eax, ecx
+			mov ebx, 100
+			mul ebx
+
+			//División: eax guarda el numero a dividir y es remplazado por su resultado al final, edx guarda el residuo
+			//El registro o variable dividido no es afectado, en este caso ebx
+			mov ebx, SoraHealth
+			div ebx
+
+			//eax tiene el resultado del porcentaje de cuanta vida se le esta quitando al personaje [(PuntosDeDaño * 100)/SaludTotal]
+			//edx tiene el residuo restante
+
+			cmp edx, 5 // Si el residuo es 5 o más, se redondeara el porcentaje, para obtener resultados más aproximados
+			jb NoExtraPercent5
+
+			inc eax // Agrega un 1% al porcentaje
+
+			NoExtraPercent5 :
+
+		mov ebx, WidthHealthbar
+			mul ebx //Porcentaje de vida a restar * Pixeles totales del Sprite de la barra vida (180)
+
+			mov ebx, 100
+			div ebx // (Porcentaje * Pixeles) / 100
+
+			//eax tiene el resultado del numero de pixeles al que se le restara al ancho del sprite
+
+			mov edi, HealthSpritePointer
+			sub [edi], eax // Ahora obtenido el porcentaje de los puntos de vida a restar, es el mismo porcentaje que se restara al sprite de vida (Representado en pixeles)
+
+			mov edx, PlayerHealth
+			sub edx, ecx //Resta vida a la vida actual del jugador
+
+			cmp edx, 0 //Si la vida es 0, se dejara de dibujar la barra de vida
+			je BackToZeroSora
+			cmp edx, 0xFFFF0000 //Si la vida se vuelve negativa, se regresara a 0 y se dejara de dibujar la barra de vida
+			ja BackToZeroSora
+			jmp SetHealthDamageSora
+
+			BackToZeroSora :
+			mov edx, 0 //Vida = 0
+			mov ShowPlayerHealth, 0 //No se mostrara el sprite de la barra de vida si se regresa a 0
+
+			SetHealthDamageSora :
+			mov PlayerHealth, edx
+	}
+	if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho < 1) {
+		VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 1;
+	}
+}
+
+void DamageRikuMASM(int Damage) {
+	int* HealthSpritePointer = &VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho;
+	__asm {
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+
+		mov ecx, Damage //Puntos a curar a ecx
+		cmp ecx, 0	//Si el numero random es cero, se cambia a uno
+		jne DamageCalculations6
+
+		mov ecx, 1
+
+		DamageCalculations6:
+		//Multiplicación: eax guarda el primer valor de una multiplicación y es remplazado por su resultado al final
+		//El registro o variable multiplicado no es afectado, en este caso ebx
+		mov eax, ecx
+			mov ebx, 100
+			mul ebx
+
+			//División: eax guarda el numero a dividir y es remplazado por su resultado al final, edx guarda el residuo
+			//El registro o variable dividido no es afectado, en este caso ebx
+			mov ebx, RikuHealth
+			div ebx
+
+			//eax tiene el resultado del porcentaje de cuanta vida se le esta quitando al personaje [(PuntosDeDaño * 100)/SaludTotal]
+			//edx tiene el residuo restante
+
+			cmp edx, 5 // Si el residuo es 5 o más, se redondeara el porcentaje, para obtener resultados más aproximados
+			jb NoExtraPercent6
+
+			inc eax // Agrega un 1% al porcentaje
+
+			NoExtraPercent6 :
+
+		mov ebx, WidthHealthbar
+			mul ebx //Porcentaje de vida a restar * Pixeles totales del Sprite de la barra vida (180)
+
+			mov ebx, 100
+			div ebx // (Porcentaje * Pixeles) / 100
+
+			//eax tiene el resultado del numero de pixeles al que se le restara al ancho del sprite
+
+			mov edi, HealthSpritePointer
+			sub[edi], eax // Ahora obtenido el porcentaje de los puntos de vida a restar, es el mismo porcentaje que se restara al sprite de vida (Representado en pixeles)
+
+			mov edx, EnemyHealth
+			sub edx, ecx //Resta vida a la vida actual del jugador
+
+			cmp edx, 0 //Si la vida es 0, se dejara de dibujar la barra de vida
+			je BackToZeroRiku
+			cmp edx, 0xFFFF0000 //Si la vida se vuelve negativa, se regresara a 0 y se dejara de dibujar la barra de vida
+			ja BackToZeroRiku
+			jmp SetHealthDamageRiku
+
+			BackToZeroRiku :
+		mov edx, 0 //Vida = 0
+			mov ShowEnemyHealth, 0 //No se mostrara el sprite de la barra de vida si se regresa a 0
+
+			SetHealthDamageRiku :
+			mov EnemyHealth, edx
+
+			mov ebx, TotalDamage
+			add ebx, ecx
+			mov TotalDamage, ebx //Se suma al daño total hecho por el jugador para calcular el puntaje más tarde
+	}
+	if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
+		VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
+	}
+}
+
+void DamageAxelMASM(int Damage) {
+	int* HealthSpritePointer = &VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho;
+	__asm {
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+
+		mov ecx, Damage //Puntos a curar a ecx
+		cmp ecx, 0	//Si el numero random es cero, se cambia a uno
+		jne DamageCalculations7
+
+		mov ecx, 1
+
+		DamageCalculations7:
+		//Multiplicación: eax guarda el primer valor de una multiplicación y es remplazado por su resultado al final
+		//El registro o variable multiplicado no es afectado, en este caso ebx
+		mov eax, ecx
+			mov ebx, 100
+			mul ebx
+
+			//División: eax guarda el numero a dividir y es remplazado por su resultado al final, edx guarda el residuo
+			//El registro o variable dividido no es afectado, en este caso ebx
+			mov ebx, AxelHealth
+			div ebx
+
+			//eax tiene el resultado del porcentaje de cuanta vida se le esta quitando al personaje [(PuntosDeDaño * 100)/SaludTotal]
+			//edx tiene el residuo restante
+
+			cmp edx, 5 // Si el residuo es 5 o más, se redondeara el porcentaje, para obtener resultados más aproximados
+			jb NoExtraPercent7
+
+			inc eax // Agrega un 1% al porcentaje
+
+			NoExtraPercent7:
+
+		mov ebx, WidthHealthbar
+			mul ebx //Porcentaje de vida a restar * Pixeles totales del Sprite de la barra vida (180)
+
+			mov ebx, 100
+			div ebx // (Porcentaje * Pixeles) / 100
+
+			//eax tiene el resultado del numero de pixeles al que se le restara al ancho del sprite
+
+			mov edi, HealthSpritePointer
+			sub[edi], eax // Ahora obtenido el porcentaje de los puntos de vida a restar, es el mismo porcentaje que se restara al sprite de vida (Representado en pixeles)
+
+			mov edx, EnemyHealth
+			sub edx, ecx //Resta vida a la vida actual del jugador
+
+			cmp edx, 0 //Si la vida es 0, se dejara de dibujar la barra de vida
+			je BackToZeroAxel
+			cmp edx, 0xFFFF0000 //Si la vida se vuelve negativa, se regresara a 0 y se dejara de dibujar la barra de vida
+			ja BackToZeroAxel
+			jmp SetHealthDamageAxel
+
+			BackToZeroAxel:
+		mov edx, 0 //Vida = 0
+			mov ShowEnemyHealth, 0 //No se mostrara el sprite de la barra de vida si se regresa a 0
+
+			SetHealthDamageAxel:
+			mov EnemyHealth, edx
+
+			mov ebx, TotalDamage
+			add ebx, ecx
+			mov TotalDamage, ebx //Se suma al daño total hecho por el jugador para calcular el puntaje más tarde
+	}
+	if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
+		VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
+	}
+}
+
+void DamageMarluxiaMASM(int Damage) {
+	int* HealthSpritePointer = &VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho;
+	__asm {
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+
+		mov ecx, Damage //Puntos a curar a ecx
+		cmp ecx, 0	//Si el numero random es cero, se cambia a uno
+		jne DamageCalculations8
+
+		mov ecx, 1
+
+		DamageCalculations8:
+		//Multiplicación: eax guarda el primer valor de una multiplicación y es remplazado por su resultado al final
+		//El registro o variable multiplicado no es afectado, en este caso ebx
+		mov eax, ecx
+			mov ebx, 100
+			mul ebx
+
+			//División: eax guarda el numero a dividir y es remplazado por su resultado al final, edx guarda el residuo
+			//El registro o variable dividido no es afectado, en este caso ebx
+			mov ebx, MarluxiaHealth
+			div ebx
+
+			//eax tiene el resultado del porcentaje de cuanta vida se le esta quitando al personaje [(PuntosDeDaño * 100)/SaludTotal]
+			//edx tiene el residuo restante
+
+			cmp edx, 5 // Si el residuo es 5 o más, se redondeara el porcentaje, para obtener resultados más aproximados
+			jb NoExtraPercent8
+
+			inc eax // Agrega un 1% al porcentaje
+
+			NoExtraPercent8 :
+
+		mov ebx, WidthHealthbar
+			mul ebx //Porcentaje de vida a restar * Pixeles totales del Sprite de la barra vida (180)
+
+			mov ebx, 100
+			div ebx // (Porcentaje * Pixeles) / 100
+
+			//eax tiene el resultado del numero de pixeles al que se le restara al ancho del sprite
+
+			mov edi, HealthSpritePointer
+			sub[edi], eax // Ahora obtenido el porcentaje de los puntos de vida a restar, es el mismo porcentaje que se restara al sprite de vida (Representado en pixeles)
+
+			mov edx, EnemyHealth
+			sub edx, ecx //Resta vida a la vida actual del jugador
+
+			cmp edx, 0 //Si la vida es 0, se dejara de dibujar la barra de vida
+			je BackToZeroMarluxia
+			cmp edx, 0xFFFF0000 //Si la vida se vuelve negativa, se regresara a 0 y se dejara de dibujar la barra de vida
+			ja BackToZeroMarluxia
+			jmp SetHealthDamageMarluxia
+
+			BackToZeroMarluxia:
+		mov edx, 0 //Vida = 0
+			mov ShowEnemyHealth, 0 //No se mostrara el sprite de la barra de vida si se regresa a 0
+
+			SetHealthDamageMarluxia:
+			mov EnemyHealth, edx
+
+			mov ebx, TotalDamage
+			add ebx, ecx
+			mov TotalDamage, ebx //Se suma al daño total hecho por el jugador para calcular el puntaje más tarde
+	}
+	if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
+		VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
+	}
+}
 #pragma endregion
 
 void DisplayNumber(int Number) {
@@ -6780,63 +7066,202 @@ void DisplayNumber(int Number) {
 	}
 }
 
+//void SetDamage(bool ToPlayer) version c++
+//
+//void SetDamage(bool ToPlayer) {
+//	int Damage = 0;
+//	int DamagePercent = 0;
+//	srand((unsigned)time(NULL));
+//	switch (CurrentStage) {
+//	case Stage1:
+//		if (ToPlayer) {
+//			if (PlayerShield) {
+//				Damage = rand() % 10;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			else {
+//				Damage = rand() % 25;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//
+//			//Calcula que porcentaje de daño se le hara al personaje
+//			//Para poder modificar el largo de la barra de vida
+//			//correspondiente
+//			DamagePercent = (Damage * 100) / SoraHealth;
+//			if ((Damage * 100) % SoraHealth >= 5) {
+//				DamagePercent++;
+//			}
+//			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
+//			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho < 1) {
+//				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 1;
+//				ShowPlayerHealth = false;
+//			}
+//		}
+//		else {
+//			if (EnemyShield) {
+//				Damage = rand() % 10;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			else {
+//				Damage = rand() % 25;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			DamagePercent = (Damage * 100) / RikuHealth;
+//			if ((Damage * 100) % RikuHealth >= 5) {
+//				DamagePercent++;
+//			}
+//			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
+//			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
+//				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
+//				ShowEnemyHealth = false;
+//			}
+//		}
+//		break;
+//
+//	case Stage2:
+//		if (ToPlayer) {
+//			if (PlayerShield) {
+//				Damage = rand() % 10;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			else {
+//				Damage = rand() % 30;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			DamagePercent = ((Damage * 100) / SoraHealth);
+//			if ((Damage * 100) % SoraHealth >= 5) {
+//				DamagePercent++;
+//			}
+//			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100) + 1;
+//			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho < 1) {
+//				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 1;
+//				ShowPlayerHealth = false;
+//			}
+//		}
+//		else {
+//			if (EnemyShield) {
+//				Damage = rand() % 20;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			else {
+//				Damage = rand() % 35;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			DamagePercent = (Damage * 100) / AxelHealth;
+//			if ((Damage * 100) % AxelHealth >= 5) {
+//				DamagePercent++;
+//			}
+//			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
+//			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
+//				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
+//				ShowEnemyHealth = false;
+//			}
+//		}
+//		break;
+//
+//	case Stage3:
+//		if (ToPlayer) {
+//			if (PlayerShield) {
+//				Damage = rand() % 15;
+//			}
+//			else {
+//				Damage = rand() % 45;
+//			}
+//			DamagePercent = (Damage * 100) / SoraHealth;
+//			if ((Damage * 100) % SoraHealth >= 5) {
+//				DamagePercent++;
+//			}
+//			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
+//			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho < 1) {
+//				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 1;
+//				ShowPlayerHealth = false;
+//			}
+//		}
+//		else {
+//			if (EnemyShield) {
+//				Damage = rand() % 25;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			else {
+//				Damage = rand() % 65;
+//				if (Damage == 0) {
+//					Damage = 1;
+//				}
+//			}
+//			DamagePercent = (Damage * 100) / MarluxiaHealth;
+//			if ((Damage * 100) % MarluxiaHealth >= 5) {
+//				DamagePercent++;
+//			}
+//			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
+//			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
+//				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
+//				ShowEnemyHealth = false;
+//			}
+//		}
+//		break;
+//	}
+//
+//	if (ToPlayer) {
+//		PlayerHealth -= Damage;
+//		if (PlayerHealth < 0) PlayerHealth = 0;
+//		if (PlayerHealth != 0 && !ShowPlayerHealth) {
+//			ShowPlayerHealth = true;
+//		}
+//	}
+//	else{
+//		EnemyHealth -= Damage;
+//		if (EnemyHealth < 0) EnemyHealth = 0;
+//		if (EnemyHealth != 0 && !ShowEnemyHealth) {
+//			ShowEnemyHealth = true;
+//		}
+//		TotalDamage += Damage;
+//	}
+//	DisplayNumber(Damage);
+//}
+
 void SetDamage(bool ToPlayer) {
 	int Damage = 0;
-	int DamagePercent = 0;
-	//srand((unsigned)time(NULL));
+	srand((unsigned)time(NULL));
 	switch (CurrentStage) {
 	case Stage1:
 		if (ToPlayer) {
 			if (PlayerShield) {
 				Damage = rand() % 10;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
 			else{
 				Damage = rand() % 25;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
 			//Calcula que porcentaje de daño se le hara al personaje
 			//Para poder modificar el largo de la barra de vida
 			//correspondiente
-			DamagePercent = (Damage * 100) / SoraHealth;
-			if ((Damage * 100) % SoraHealth >= 5) {
-				DamagePercent++;
-			}
-			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
-			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho < 1) {
-				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 1;
-				ShowPlayerHealth = false;
-			}
+			DamageSoraMASM(Damage);
 		}
 		else {
 			if (EnemyShield) {
 				Damage = rand() % 10;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
 			else {
 				Damage = rand() % 25;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
-			DamagePercent = (Damage * 100) / RikuHealth;
-			if ((Damage * 100) % RikuHealth >= 5) {
-				DamagePercent++;
-			}
-			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
-			/*if (((WidthHealthbar * DamagePercent) % 100) >= 5) {
-				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho--;
-			}*/
-			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
-				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
-				ShowEnemyHealth = false;
-			}
+			DamageRikuMASM(Damage);
 		}
 		break;
 
@@ -6844,48 +7269,20 @@ void SetDamage(bool ToPlayer) {
 		if (ToPlayer) {
 			if (PlayerShield) {
 				Damage = rand() % 10;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
 			else {
 				Damage = rand() % 30;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
-			DamagePercent = ((Damage * 100) / SoraHealth);
-			if ((Damage * 100) % SoraHealth >= 5) {
-				DamagePercent++;
-			}
-			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100) + 1;
-			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho < 1) {
-				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 1;
-				ShowPlayerHealth = false;
-			}
+			DamageSoraMASM(Damage);
 		}
 		else {
 			if (EnemyShield) {
 				Damage = rand() % 20;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
 			else {
 				Damage = rand() % 35;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
-			DamagePercent = (Damage * 100) / AxelHealth;
-			if ((Damage * 100) % AxelHealth >= 5) {
-				DamagePercent++;
-			}
-			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
-			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
-				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
-				ShowEnemyHealth = false;
-			}
+			DamageAxelMASM(Damage);
 		}
 		break;
 
@@ -6893,71 +7290,28 @@ void SetDamage(bool ToPlayer) {
 		if (ToPlayer) {
 			if (PlayerShield) {
 				Damage = rand() % 15;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
 			else {
 				Damage = rand() % 45;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
-			DamagePercent = (Damage * 100) / SoraHealth;
-			if ((Damage * 100) % SoraHealth >= 5) {
-				DamagePercent++;
-			}
-			VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
-			if (VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho < 1) {
-				VidaPlayer.FrameSpriteArray[VidaPlayer.idBasicUI][Frame0].ancho = 1;
-				ShowPlayerHealth = false;
-			}
+			DamageSoraMASM(Damage);
 		}
 		else {
 			if (EnemyShield) {
 				Damage = rand() % 25;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
 			else {
 				Damage = rand() % 65;
-				if (Damage == 0) {
-					Damage = 1;
-				}
 			}
-			DamagePercent = (Damage * 100) / MarluxiaHealth;
-			if ((Damage * 100) % MarluxiaHealth >= 5) {
-				DamagePercent++;
-			}
-			VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho -= ((WidthHealthbar * DamagePercent) / 100);
-			if (VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho < 1) {
-				VidaEnemy.FrameSpriteArray[VidaEnemy.idBasicUI][Frame0].ancho = 1;
-				ShowEnemyHealth = false;
-			}
+			DamageMarluxiaMASM(Damage);
 		}
 		break;
-	}
-	if (ToPlayer) {
-		PlayerHealth -= Damage;
-		if (PlayerHealth < 0) PlayerHealth = 0;
-		if (PlayerHealth != 0 && !ShowPlayerHealth) {
-			ShowPlayerHealth = true;
-		}
-	}
-	else {
-		EnemyHealth -= Damage;
-		if (EnemyHealth < 0) EnemyHealth = 0;
-		if (EnemyHealth != 0 && !ShowEnemyHealth) {
-			ShowEnemyHealth = true;
-		}
-		TotalDamage += Damage;
 	}
 	DisplayNumber(Damage);
 }
 
 //void SetHealing(bool ToPlayer) versión c++
-
+// 
 //void SetHealing(bool IsPlayer) {
 //
 //	int Heal = 0;
@@ -7115,7 +7469,7 @@ void SetDamage(bool ToPlayer) {
 
 void SetHealing(bool IsPlayer) {
 	int Heal = 0;
-
+	srand(time(NULL));
 	switch (CurrentStage) {
 	case Stage1:
 		if (IsPlayer) {
